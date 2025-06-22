@@ -4,20 +4,20 @@ import com.coldblue.model.Survey
 import com.coldblue.model.SurveyComment
 import com.coldblue.network.model.NetworkSurvey
 import com.coldblue.network.model.NetworkSurveyComment
-import com.coldblue.network.model.NetworkSurveyLike
-import com.orhanobut.logger.Logger
+import com.coldblue.network.model.NetworkSurveyLikeWithIsLike
 
 object SurveyMapper {
     fun List<NetworkSurvey>.asDomain(
-        userId: String,
-        liked: List<NetworkSurveyLike>,
+        surveyLikedList: List<NetworkSurveyLikeWithIsLike>,
         commentCount: List<NetworkSurveyComment>
     ): List<Survey> {
         return this.map { survey ->
+            val s = surveyLikedList.filter { it.survey_id == survey.id && it.isLiked}
             survey.asDomain(
-                liked.filter { it.user_id == userId }.size == 1,
+                s.isNotEmpty(),
+//                if (s.isEmpty()) false else s.first().isLiked,
                 commentCount.count { it.survey_id == survey.id },
-                liked.count { it.survey_id == survey.id })
+                surveyLikedList.count { it.survey_id == survey.id })
         }
     }
 

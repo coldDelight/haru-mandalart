@@ -8,7 +8,6 @@ import com.coldblue.domain.network.GetNetworkStateUseCase
 import com.coldblue.domain.survey.GetSurveyListUseCase
 import com.coldblue.domain.survey.LikeSurveyUseCase
 import com.coldblue.model.Survey
-import com.orhanobut.logger.Logger
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -47,8 +46,9 @@ class SurveyViewModel @Inject constructor(
     fun getSurveyList() {
         viewModelScope.launch {
             if (getNetworkStateUseCase().first()) {
-                if (getSurveyListUseCase().isNotEmpty()) {
-                    _surveyUIState.value = SurveyUiState.Success(getSurveyListUseCase())
+                val surveyList = getSurveyListUseCase()
+                if (surveyList.isNotEmpty()) {
+                    _surveyUIState.value = SurveyUiState.Success(surveyList)
                 } else {
                     _surveyUIState.value = SurveyUiState.Error("제안하기 게시판이 비어있습니다.")
                 }
@@ -59,13 +59,6 @@ class SurveyViewModel @Inject constructor(
     }
 
     fun updateSurvey(survey: Survey) {
-        val newSurveyList = when (val tmp = _surveyUIState.value) {
-            is SurveyUiState.Success -> {
-                SurveyUiState.Success(tmp.surveyList.map { if (it.id == survey.id) it.copy(isLiked = !it.isLiked) else it })
-            }
-
-            else -> _surveyUIState.value
-        }
         viewModelScope.launch {
             likeSurveyUseCase(
                 survey.copy(
@@ -73,8 +66,7 @@ class SurveyViewModel @Inject constructor(
                     likeCount = if (survey.isLiked) survey.likeCount - 1 else survey.likeCount + 1
                 )
             )
-            _surveyUIState.value = newSurveyList
-
+            getSurveyList()
         }
     }
 

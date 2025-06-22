@@ -5,6 +5,7 @@ import com.coldblue.network.model.NetworkNotice
 import com.coldblue.network.model.NetworkSurvey
 import com.coldblue.network.model.NetworkSurveyComment
 import com.coldblue.network.model.NetworkSurveyLike
+import com.coldblue.network.model.NetworkSurveyLikeWithIsLike
 import com.orhanobut.logger.Logger
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.gotrue.auth
@@ -23,11 +24,13 @@ class SurveyDataSourceImpl @Inject constructor(
         }
     }
 
-    override suspend fun getSurveyLikedList(): List<NetworkSurveyLike> {
+    override suspend fun getSurveyLikedList(): List<NetworkSurveyLikeWithIsLike> {
         return try {
-            client.postgrest["surveyLike"].select().decodeList<NetworkSurveyLike>()
+            val userId = client.auth.currentUserOrNull()?.id ?:"noId"
+            val surveyLikeList = client.postgrest["surveyLike"].select().decodeList<NetworkSurveyLike>()
+
+            surveyLikeList.map { surveyLike -> NetworkSurveyLikeWithIsLike(isLiked = surveyLike.user_id==userId, id = surveyLike.id, survey_id = surveyLike.survey_id) }
         } catch (e: Exception) {
-            Logger.d("오류 $e")
             emptyList()
         }
     }
@@ -63,13 +66,18 @@ class SurveyDataSourceImpl @Inject constructor(
         }
     }
 
-    override suspend fun getSurveyLiked(id: Int): List<NetworkSurveyLike> {
+    override suspend fun getSurveyLiked(id: Int): List<NetworkSurveyLikeWithIsLike> {
         return try {
+            val userId = client.auth.currentUserOrNull()?.id ?:"noId"
+
+            val surveyLike =
             client.postgrest["surveyLike"].select {
                 filter {
                     NetworkSurveyLike::survey_id eq id
                 }
             }.decodeList<NetworkSurveyLike>()
+
+            surveyLike.map { NetworkSurveyLikeWithIsLike(isLiked = it.user_id==userId, id = it.id, survey_id = it.survey_id) }
         } catch (e: Exception) {
             emptyList()
         }
@@ -139,9 +147,5 @@ class SurveyDataSourceImpl @Inject constructor(
             }
         } catch (e: Exception) {
         }
-    }
-
-    override suspend fun getUserId(): String {
-        return client.auth.currentUserOrNull()?.id?:""
     }
 }
